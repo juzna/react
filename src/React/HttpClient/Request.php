@@ -8,6 +8,7 @@ use React\EventLoop\LoopInterface;
 use React\HttpClient\Response;
 use React\HttpClient\ResponseHeaderParser;
 use React\Promise\Deferred;
+use React\Promise\PromiseInterface;
 use React\SocketClient\ConnectorInterface;
 use React\Stream\BufferedSink;
 use React\Stream\Stream;
@@ -28,6 +29,7 @@ class Request extends EventEmitter implements WritableStreamInterface
     private $connector;
     private $requestData;
 
+	/** @var Stream */
     private $stream;
     private $buffer;
     private $responseFactory;
@@ -250,7 +252,11 @@ class Request extends EventEmitter implements WritableStreamInterface
         return $factory;
     }
 
-    public function getResponseBody()
+
+	/**
+	 * @return PromiseInterface<string, Response>
+	 */
+	public function getResponseBody()
     {
         $deferred = new Deferred;
         $resolver = $deferred->resolver();
@@ -259,8 +265,8 @@ class Request extends EventEmitter implements WritableStreamInterface
         $this->on('response', function ($response) use ($deferred, &$hasResponse) {
             $hasResponse = true;
             BufferedSink::createPromise($response)->then(
-                function($data) use ($deferred) {
-                    $deferred->resolve($data);
+                function($data) use ($deferred, $response) {
+                    $deferred->resolve( [ $data, $response ] );
                 },
                 function($err) use ($deferred) {
                     $deferred->reject($err);
@@ -276,6 +282,6 @@ class Request extends EventEmitter implements WritableStreamInterface
         $this->end(); // send the request now
 
         return $deferred->promise();
-    }
+	}
 }
 
