@@ -60,6 +60,15 @@ class Response extends EventEmitter implements ReadableStreamInterface
         return $this->headers;
     }
 
+	public function getHeader($name)
+	{
+		foreach ($this->headers as $headerName => $headerValue) {
+			if (strcasecmp($headerName, $name) === 0) return $headerValue;
+		}
+
+		return NULL;
+	}
+
     public function handleData($data)
     {
         $this->emit('data', array($data, $this));

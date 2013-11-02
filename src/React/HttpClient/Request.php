@@ -262,7 +262,7 @@ class Request extends EventEmitter implements WritableStreamInterface
         $resolver = $deferred->resolver();
         $hasResponse = false;
 
-        $this->on('response', function ($response) use ($deferred, &$hasResponse) {
+        $this->on('response', function (Response $response) use ($deferred, &$hasResponse) {
             $hasResponse = true;
             BufferedSink::createPromise($response)->then(
                 function($data) use ($deferred, $response) {
@@ -278,8 +278,6 @@ class Request extends EventEmitter implements WritableStreamInterface
                 $resolver->reject($err ?: new \RuntimeException("No data received"));
             }
         });
-
-        $this->end(); // send the request now
 
         return $deferred->promise();
 	}

@@ -4,6 +4,7 @@ namespace React\HttpClient;
 
 use React\EventLoop\LoopInterface;
 use React\HttpClient\Request;
+use React\Promise\PromiseInterface;
 use React\SocketClient\ConnectorInterface;
 
 class Client
@@ -19,7 +20,15 @@ class Client
         $this->secureConnector = $secureConnector;
     }
 
-    public function request($method, $url, $data = NULL, array $headers = array())
+
+	/**
+	 * @param string $method
+	 * @param string $url
+	 * @param array|string $data
+	 * @param array $headers
+	 * @return PromiseInterface<string, Response> Promise for the response data, and the response as well
+	 */
+	public function request($method, $url, $data = NULL, array $headers = array())
     {
 	    // Prepare POST ?
 	    if (is_array($data)) {
@@ -33,7 +42,7 @@ class Client
 		    $rawPostData = $data;
 
 	    } elseif ($data) {
-		    throw new \InvalidArgumentException("Unknown data format");
+		    throw new \InvalidArgumentException("Unknown data format; expected array or string");
 	    }
 
         $requestData = new RequestData($method, $url, $headers);
@@ -41,20 +50,39 @@ class Client
         $request = new Request($this->loop, $connectionManager, $requestData);
 
 		if (isset($rawPostData)) {
-			$request->write($rawPostData);
+			$request->on('headers-written', function() use ($request, $rawPostData) {
+				$request->write($rawPostData);
+				$request->end();
+			});
+			$request->writeHead();
+
+		} else {
+			$request->end(); // send the request now
 		}
 
-		return $request;
+		return $request->getResponseBody()->then(function($d) use ($headers) {
+			/** @var Response $response */
+			list ($data, $response) = $d;
+
+			if (preg_match('/^3\d\d$/', $response->getCode()) && ($location = $response->getHeader('Location'))) { // redirect
+				unset($headers['Content-Type'], $headers['Content-Length']); // keep header, but these
+				return $this->get($location, $headers); // another promise
+
+            } else {
+				return $d; // just return it
+
+			}
+		});
     }
 
     public function get($url, array $headers = array())
     {
-        return $this->request('GET', $url, NULL, $headers)->getResponseBody();
+        return $this->request('GET', $url, NULL, $headers);
     }
 
 	public function post($url, $data)
 	{
-		return $this->request('POST', $url, $data)->getResponseBody();
+		return $this->request('POST', $url, $data);
 	}
 
     private function getConnectorForScheme($scheme)
