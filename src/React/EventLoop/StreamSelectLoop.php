@@ -8,7 +8,7 @@ use React\EventLoop\Timer\Timers;
 
 class StreamSelectLoop implements LoopInterface
 {
-    const QUANTUM_INTERVAL = 1000000;
+    public static $quantumInterval = 1000000;
 
     private $timers;
     private $running = false;
@@ -99,7 +99,7 @@ class StreamSelectLoop implements LoopInterface
         $nextEvent = $this->timers->getFirst();
 
         if (null === $nextEvent) {
-            return self::QUANTUM_INTERVAL;
+            return self::$quantumInterval;
         }
 
         $currentTime = microtime(true);
@@ -171,9 +171,9 @@ class StreamSelectLoop implements LoopInterface
         return $this->running;
     }
 
-    public function tick()
+    public function tick($block = false)
     {
-        return $this->loop(false);
+        return $this->loop($block);
     }
 
     public function run()
@@ -186,4 +186,11 @@ class StreamSelectLoop implements LoopInterface
     {
         $this->running = false;
     }
+
+
+	public function isRunning()
+	{
+		return $this->running;
+	}
+
 }
